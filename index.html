@@ -72,11 +72,11 @@
       <button class="pill" id="musicBtn" aria-pressed="false">♫ Play Kannoramaai from 0:50</button>
     </div>
     <p class="hint">Best opened with sound on, and a little time to smile.</p>
-    <!-- Audio-only experience: the official YouTube embed is kept offscreen, and starts at 0:50 after the button is tapped. -->
-    <div id="musicPlayerWrap" aria-hidden="true" style="position:fixed;width:1px;height:1px;left:-10px;bottom:0;overflow:hidden;opacity:0;pointer-events:none">
-      <iframe id="musicPlayer" width="1" height="1" src="" title="Birthday song audio"
-        allow="autoplay; encrypted-media" referrerpolicy="strict-origin-when-cross-origin"></iframe>
-    </div>
+    <!-- Local audio file: add static/kannoramaai.mp3 to your repository. -->
+    <audio id="birthdayAudio" preload="metadata">
+      <source src="static/kannoramaai.mp3" type="audio/mpeg">
+      Your browser does not support audio playback.
+    </audio>
   </header>
 
   <section id="cakeSection">
@@ -146,11 +146,7 @@
 <script>
   const openBtn = document.getElementById('openBtn');
   const musicBtn = document.getElementById('musicBtn');
-  // Replace with the video ID of an official/licensed YouTube upload of
-  // "Kannoramaai" by Pogan, Ankith Jain, Dharshana Vijayan & Stupid MonkeyZ.
-  const YOUTUBE_VIDEO_ID = 'ssFveirNpic';
-  const musicPlayer = document.getElementById('musicPlayer');
-  let playing = false;
+  const birthdayAudio = document.getElementById('birthdayAudio');
   function burst(count=18) {
     const symbols = ['💗','💕','💖','✨','🌸','💝'];
     for (let i=0;i<count;i++) {
@@ -165,20 +161,44 @@
     burst(26); document.getElementById('cakeSection').scrollIntoView({behavior:'smooth'});
     openBtn.textContent='Your surprise is open 💗';
   });
-  musicBtn.addEventListener('click', ()=>{
-    if (!playing) {
-      if (!YOUTUBE_VIDEO_ID) {
-        musicBtn.textContent='Add official video ID in index.html';
-        return;
+  musicBtn.addEventListener('click', async () => {
+    try {
+      if (birthdayAudio.paused) {
+        // Wait until the audio metadata is available before seeking.
+        if (birthdayAudio.readyState === 0) {
+          await new Promise((resolve, reject) => {
+            birthdayAudio.addEventListener('loadedmetadata', resolve, { once: true });
+            birthdayAudio.addEventListener('error', reject, { once: true });
+            birthdayAudio.load();
+          });
+        }
+
+        // Start at 0:50 on first play or after the song ends.
+        if (birthdayAudio.currentTime < 50 || birthdayAudio.ended) {
+          if (!Number.isFinite(birthdayAudio.duration) || birthdayAudio.duration <= 50) {
+            throw new Error('Audio file is shorter than 50 seconds or unavailable.');
+          }
+          birthdayAudio.currentTime = 50;
+        }
+
+        await birthdayAudio.play();
+        musicBtn.textContent = '♫ Pause Kannoramaai';
+        musicBtn.setAttribute('aria-pressed', 'true');
+      } else {
+        birthdayAudio.pause();
+        musicBtn.textContent = '♫ Play Kannoramaai from 0:50';
+        musicBtn.setAttribute('aria-pressed', 'false');
       }
-      // YouTube's start parameter begins playback at 00:50.
-      musicPlayer.src = 'https://www.youtube-nocookie.com/embed/' +
-        encodeURIComponent(YOUTUBE_VIDEO_ID) +
-        '?start=50&autoplay=1&loop=1&playlist=' + encodeURIComponent(YOUTUBE_VIDEO_ID);
-      playing=true; musicBtn.textContent='♫ Kannoramaai playing from 0:50'; musicBtn.setAttribute('aria-pressed','true');
-    } else {
-      musicPlayer.src=''; playing=false; musicBtn.textContent='♫ Play Kannoramaai from 0:50'; musicBtn.setAttribute('aria-pressed','false');
+    } catch (error) {
+      console.error('Audio playback failed:', error);
+      musicBtn.textContent = 'Audio unavailable — check the MP3 file';
+      musicBtn.setAttribute('aria-pressed', 'false');
     }
+  });
+
+  birthdayAudio.addEventListener('ended', () => {
+    musicBtn.textContent = '♫ Play Kannoramaai from 0:50';
+    musicBtn.setAttribute('aria-pressed', 'false');
   });
   document.getElementById('blowBtn').addEventListener('click',()=>{
     document.getElementById('cake').classList.add('blown');
