@@ -44,7 +44,9 @@
     .letter .salute { font:italic 1.7rem Georgia,serif; color:#b33d6b; }
     .memories { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-top:25px; }
     .memory { min-height:150px; aspect-ratio:4/5; border:1px solid #ffffff35; border-radius:17px; overflow:hidden; background:linear-gradient(145deg,#ffb5cb33,#ffd78222); display:flex; align-items:center; justify-content:center; flex-direction:column; padding:12px; }
-    .memory img { width:100%; height:260px; object-fit:contain; object-position:center; border-radius:11px; margin-bottom:10px; background:#24101f; }\n    .photo-memory { justify-content:flex-start; text-align:center; min-height:0; padding:12px; }\n    .photo-memory b { font-size:.94rem; }
+    .memory img { width:100%; height:260px; object-fit:contain; object-position:center; border-radius:11px; margin-bottom:10px; background:#24101f; }
+    .photo-memory { justify-content:flex-start; text-align:center; min-height:0; padding:12px; }
+    .photo-memory b { font-size:.94rem; }
     .memory .emoji { font-size:2.5rem; }
     .memory small { color:#ffdce8; line-height:1.4; }
     .final-card { margin:22px auto 0; max-width:640px; border:1px solid #ffbed566; background:#ffffff0b; border-radius:24px; padding:26px 20px; }
@@ -71,12 +73,10 @@
       <button class="primary" id="openBtn">Open your surprise ✨</button>
       <button class="pill" id="musicBtn" aria-pressed="false">♫ Play Kannoramaai from 0:50</button>
     </div>
-    <p class="hint">Best opened with sound on, and a little time to smile.</p>
-    <!-- Local audio file: add static/kannoramaai.mp3 to your repository. -->
-    <audio id="birthdayAudio" preload="metadata">
-      <source src="static/kannoramaai.mp3" type="audio/mpeg">
-      Your browser does not support audio playback.
-    </audio>
+    <p class="hint" id="musicHint">Best opened with sound on, and a little time to smile.</p>
+
+    <!-- IMPORTANT: the file name below must match your file in the static folder EXACTLY (lowercase, no spaces). -->
+    <audio id="bgAudio" src="static/kannoramaai.mp3" preload="auto" loop></audio>
   </header>
 
   <section id="cakeSection">
@@ -115,14 +115,15 @@
   <section id="memorySection">
     <p class="eyebrow">little moments, big feelings</p>
     <h2 class="section-title">Our memory corner 📸</h2>
-    <p class="muted">These placeholders are waiting for your favourite photos. Add pictures that tell your story.</p>
+    <p class="muted">A few of my favourite moments with you.</p>
     <div class="memories">
-      <div class="memory photo-memory"><img src="/static/our-photo.jpg" alt="Our photo together with our little puppy"><b>Our photo 🐶❤️</b><small>My favourite little family</small></div>
-      <div class="memory photo-memory"><img src="/static/first-memories.jpg" alt="A memory from when we were together"><b>A day to remember 🌿</b><small>June 14th, 2021 — the day I saw you</small></div>
-      <div class="memory photo-memory"><img src="/static/silly-side.jpg" alt="A playful moment together"><b>Our silly side 😂</b><small>Fighting… and then being cute again</small></div>
-      <div class="memory photo-memory"><img src="/static/little-things.jpg" alt="A sweet memory together"><b>Little things 🌷</b><small>The small moments mean so much</small></div>
-      <div class="memory photo-memory"><img src="/static/love-message.jpg" alt="A loving message between us"><b>Our memories 💌</b><small>Words I want to keep close</small></div>
-      <div class="memory photo-memory"><img src="/static/our-photo.jpg" alt="Our favourite photo together"><b>Always US 💞</b><small>Through every change, every distance, every tomorrow</small></div>
+      <!-- No leading slash in any src: paths are relative so they work at /brithday/ on GitHub Pages and on Flask. -->
+      <div class="memory photo-memory"><img src="static/our-photo.jpg" alt="Our photo together with our little puppy"><b>Our photo 🐶❤️</b><small>My favourite little family</small></div>
+      <div class="memory photo-memory"><img src="static/first-memories.jpg" alt="A memory from when we were together"><b>A day to remember 🌿</b><small>June 14th, 2021 — the day I saw you</small></div>
+      <div class="memory photo-memory"><img src="static/silly-side.jpg" alt="A playful moment together"><b>Our silly side 😂</b><small>Fighting… and then being cute again</small></div>
+      <div class="memory photo-memory"><img src="static/little-things.jpg" alt="A sweet memory together"><b>Little things 🌷</b><small>The small moments mean so much</small></div>
+      <div class="memory photo-memory"><img src="static/love-message.jpg" alt="A loving message between us"><b>Our memories 💌</b><small>Words I want to keep close</small></div>
+      <div class="memory photo-memory"><img src="static/our-photo.jpg" alt="Our favourite photo together"><b>Always US 💞</b><small>Through every change, every distance, every tomorrow</small></div>
     </div>
   </section>
 
@@ -146,7 +147,11 @@
 <script>
   const openBtn = document.getElementById('openBtn');
   const musicBtn = document.getElementById('musicBtn');
-  const birthdayAudio = document.getElementById('birthdayAudio');
+  const musicHint = document.getElementById('musicHint');
+  const bgAudio = document.getElementById('bgAudio');
+  const START_AT = 50; // seconds (0:50)
+  let playing = false;
+
   function burst(count=18) {
     const symbols = ['💗','💕','💖','✨','🌸','💝'];
     for (let i=0;i<count;i++) {
@@ -157,59 +162,62 @@
       document.body.appendChild(el); setTimeout(()=>el.remove(),7000);
     }
   }
+
   openBtn.addEventListener('click',()=>{
     burst(26); document.getElementById('cakeSection').scrollIntoView({behavior:'smooth'});
     openBtn.textContent='Your surprise is open 💗';
   });
+
+  // ---- Music (local MP3, starts at 0:50) ----
+  function seekToStart() {
+    try { bgAudio.currentTime = START_AT; } catch (e) { /* ignore until metadata is ready */ }
+  }
+  // If the browser hasn't loaded the file info yet, seek as soon as it has.
+  bgAudio.addEventListener('loadedmetadata', () => {
+    if (!playing || bgAudio.currentTime < START_AT) seekToStart();
+  });
+  // When the song loops, restart at 0:50 again instead of 0:00.
+  bgAudio.addEventListener('ended', () => { seekToStart(); bgAudio.play().catch(()=>{}); });
+
+  bgAudio.addEventListener('error', () => {
+    playing = false;
+    musicBtn.textContent = '♫ Play Kannoramaai from 0:50';
+    musicBtn.setAttribute('aria-pressed','false');
+    musicHint.textContent = 'Song file not found. Check that static/kannoramaai.mp3 exists and the name matches exactly.';
+  });
+
   musicBtn.addEventListener('click', async () => {
-    try {
-      if (birthdayAudio.paused) {
-        // Wait until the audio metadata is available before seeking.
-        if (birthdayAudio.readyState === 0) {
-          await new Promise((resolve, reject) => {
-            birthdayAudio.addEventListener('loadedmetadata', resolve, { once: true });
-            birthdayAudio.addEventListener('error', reject, { once: true });
-            birthdayAudio.load();
-          });
-        }
-
-        // Start at 0:50 on first play or after the song ends.
-        if (birthdayAudio.currentTime < 50 || birthdayAudio.ended) {
-          if (!Number.isFinite(birthdayAudio.duration) || birthdayAudio.duration <= 50) {
-            throw new Error('Audio file is shorter than 50 seconds or unavailable.');
-          }
-          birthdayAudio.currentTime = 50;
-        }
-
-        await birthdayAudio.play();
-        musicBtn.textContent = '♫ Pause Kannoramaai';
-        musicBtn.setAttribute('aria-pressed', 'true');
-      } else {
-        birthdayAudio.pause();
-        musicBtn.textContent = '♫ Play Kannoramaai from 0:50';
-        musicBtn.setAttribute('aria-pressed', 'false');
+    if (!playing) {
+      try {
+        if (bgAudio.readyState >= 1) seekToStart();
+        await bgAudio.play();
+        if (bgAudio.readyState >= 1 && bgAudio.currentTime < START_AT - 1) seekToStart();
+        playing = true;
+        musicBtn.textContent = '♫ Kannoramaai playing (tap to pause)';
+        musicBtn.setAttribute('aria-pressed','true');
+      } catch (err) {
+        musicHint.textContent = 'Could not play the song: ' + (err && err.name ? err.name : 'unknown error');
       }
-    } catch (error) {
-      console.error('Audio playback failed:', error);
-      musicBtn.textContent = 'Audio unavailable — check the MP3 file';
-      musicBtn.setAttribute('aria-pressed', 'false');
+    } else {
+      bgAudio.pause();
+      playing = false;
+      musicBtn.textContent = '♫ Play Kannoramaai from 0:50';
+      musicBtn.setAttribute('aria-pressed','false');
     }
   });
 
-  birthdayAudio.addEventListener('ended', () => {
-    musicBtn.textContent = '♫ Play Kannoramaai from 0:50';
-    musicBtn.setAttribute('aria-pressed', 'false');
-  });
+  // ---- Cake ----
   document.getElementById('blowBtn').addEventListener('click',()=>{
     document.getElementById('cake').classList.add('blown');
     document.getElementById('wishHint').textContent='Wish sent to the universe ✨ May it find its way to you.';
     burst(24); document.getElementById('blowBtn').textContent='Wish made! 💫';
   });
+
+  // ---- Countdown + reveal ----
   let countdown=3;
   const sec=document.getElementById('sec');
   const revealBtn=document.getElementById('revealBtn');
   const finalCard=document.getElementById('finalCard');
-  // A gentle visual countdown; the message remains user-controlled until tapped.
   const countTimer=setInterval(()=>{
     if(countdown>1){countdown--;sec.textContent=countdown;}
     else {clearInterval(countTimer);sec.textContent='💗';}
