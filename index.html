@@ -71,7 +71,7 @@
     <p class="sub">If I could wrap up all the love you bring into my life, it would take a million little stars. This tiny corner of the internet is just for you.</p>
     <div class="actions">
       <button class="primary" id="openBtn">Open your surprise ✨</button>
-      <button class="pill" id="musicBtn" aria-pressed="false">♫ Play Kannoramaai from 0:50</button>
+      <button class="pill" id="musicBtn" aria-pressed="false">♫ Play Kannoramaai </button>
     </div>
     <p class="hint" id="musicHint">Best opened with sound on, and a little time to smile.</p>
 
@@ -194,7 +194,7 @@
 
   bgAudio.addEventListener('error', () => {
     playing = false;
-    musicBtn.textContent = '♫ Play Kannoramaai from 0:50';
+    musicBtn.textContent = '♫ Play Kannoramaai ';
     musicBtn.setAttribute('aria-pressed', 'false');
     musicHint.textContent = 'Audio file could not be loaded. Check that static/kannoramaai.mp3 exists and the filename uses the same capitalization.';
   });
