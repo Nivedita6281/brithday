@@ -44,7 +44,9 @@
     .letter .salute { font:italic 1.7rem Georgia,serif; color:#b33d6b; }
     .memories { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-top:25px; }
     .memory { min-height:150px; aspect-ratio:4/5; border:1px solid #ffffff35; border-radius:17px; overflow:hidden; background:linear-gradient(145deg,#ffb5cb33,#ffd78222); display:flex; align-items:center; justify-content:center; flex-direction:column; padding:12px; }
-    .memory img { width:100%; height:260px; object-fit:contain; object-position:center; border-radius:11px; margin-bottom:10px; background:#24101f; }\n    .photo-memory { justify-content:flex-start; text-align:center; min-height:0; padding:12px; }\n    .photo-memory b { font-size:.94rem; }
+    .memory img { width:100%; height:260px; object-fit:contain; object-position:center; border-radius:11px; margin-bottom:10px; background:#24101f; }
+    .photo-memory { justify-content:flex-start; text-align:center; min-height:0; padding:12px; }
+    .photo-memory b { font-size:.94rem; }
     .memory .emoji { font-size:2.5rem; }
     .memory small { color:#ffdce8; line-height:1.4; }
     .final-card { margin:22px auto 0; max-width:640px; border:1px solid #ffbed566; background:#ffffff0b; border-radius:24px; padding:26px 20px; }
@@ -72,10 +74,9 @@
       <button class="pill" id="musicBtn" aria-pressed="false">♫ Play Kannoramaai from 0:50</button>
     </div>
     <p class="hint">Best opened with sound on, and a little time to smile.</p>
-    <!-- Audio-only experience: the official YouTube embed is kept offscreen, and starts at 0:50 after the button is tapped. -->
-    <div id="musicPlayerWrap" aria-hidden="true" style="position:fixed;width:1px;height:1px;left:-10px;bottom:0;overflow:hidden;opacity:0;pointer-events:none">
-      <iframe id="musicPlayer" width="1" height="1" src="" title="Birthday song audio"
-        allow="autoplay; encrypted-media" referrerpolicy="strict-origin-when-cross-origin"></iframe>
+    <div id="musicPlayerWrap"
+       style="width:min(480px, 100%); margin:16px auto;">
+      <div id="musicPlayer"></div>
     </div>
   </header>
 
@@ -149,8 +150,9 @@
   // Replace with the video ID of an official/licensed YouTube upload of
   // "Kannoramaai" by Pogan, Ankith Jain, Dharshana Vijayan & Stupid MonkeyZ.
   const YOUTUBE_VIDEO_ID = 'ssFveirNpic';
-  const musicPlayer = document.getElementById('musicPlayer');
+  let musicPlayer = null;
   let playing = false;
+  let playerReady = false;
   function burst(count=18) {
     const symbols = ['💗','💕','💖','✨','🌸','💝'];
     for (let i=0;i<count;i++) {
@@ -165,18 +167,62 @@
     burst(26); document.getElementById('cakeSection').scrollIntoView({behavior:'smooth'});
     openBtn.textContent='Your surprise is open 💗';
   });
-  musicBtn.addEventListener('click', ()=>{
-    if (!playing) {
-      if (!YOUTUBE_VIDEO_ID) {
-        musicBtn.textContent='Add official video ID in index.html';
-        return;
+  // Create the official YouTube player once the IFrame API has loaded.
+  window.onYouTubeIframeAPIReady = function () {
+    musicPlayer = new YT.Player('musicPlayer', {
+      width: '480',
+      height: '270',
+      videoId: YOUTUBE_VIDEO_ID,
+      playerVars: {
+        start: 50,
+        playsinline: 1,
+        controls: 1
+      },
+      events: {
+        onReady: function () {
+          playerReady = true;
+          musicBtn.textContent = '♫ Play Kannoramaai from 0:50';
+        },
+        onStateChange: function (event) {
+          if (event.data === YT.PlayerState.PLAYING) {
+            playing = true;
+            musicBtn.textContent = '♫ Pause Kannoramaai';
+            musicBtn.setAttribute('aria-pressed', 'true');
+          } else if (
+            event.data === YT.PlayerState.PAUSED ||
+            event.data === YT.PlayerState.ENDED
+          ) {
+            playing = false;
+            musicBtn.textContent = '♫ Play Kannoramaai from 0:50';
+            musicBtn.setAttribute('aria-pressed', 'false');
+          }
+        },
+        onError: function (event) {
+          playing = false;
+          musicBtn.textContent = 'Song failed to load — check YouTube';
+          console.error('YouTube player error:', event.data);
+        }
       }
-      musicPlayer.src = 'https://www.youtube.com/embed/' +
-        encodeURIComponent(YOUTUBE_VIDEO_ID) +
-        '?start=50&autoplay=1&playsinline=1';
-      playing=true; musicBtn.textContent='♫ Kannoramaai playing from 0:50'; musicBtn.setAttribute('aria-pressed','true');
+    });
+  };
+
+  const youtubeApi = document.createElement('script');
+  youtubeApi.src = 'https://www.youtube.com/iframe_api';
+  document.head.appendChild(youtubeApi);
+
+  musicBtn.addEventListener('click', function () {
+    if (!playerReady || !musicPlayer) {
+      musicBtn.textContent = '♫ Loading song…';
+      return;
+    }
+
+    if (playing) {
+      musicPlayer.pauseVideo();
     } else {
-      musicPlayer.src=''; playing=false; musicBtn.textContent='♫ Play Kannoramaai from 0:50'; musicBtn.setAttribute('aria-pressed','false');
+      musicPlayer.loadVideoById({
+        videoId: YOUTUBE_VIDEO_ID,
+        startSeconds: 50
+      });
     }
   });
   document.getElementById('blowBtn').addEventListener('click',()=>{
