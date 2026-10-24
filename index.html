@@ -171,10 +171,9 @@
         musicBtn.textContent='Add official video ID in index.html';
         return;
       }
-      // YouTube's start parameter begins playback at 00:50.
-      musicPlayer.src = 'https://www.youtube-nocookie.com/embed/' +
+      musicPlayer.src = 'https://www.youtube.com/embed/' +
         encodeURIComponent(YOUTUBE_VIDEO_ID) +
-        '?start=50&autoplay=1&loop=1&playlist=' + encodeURIComponent(YOUTUBE_VIDEO_ID);
+        '?start=50&autoplay=1&playsinline=1';
       playing=true; musicBtn.textContent='♫ Kannoramaai playing from 0:50'; musicBtn.setAttribute('aria-pressed','true');
     } else {
       musicPlayer.src=''; playing=false; musicBtn.textContent='♫ Play Kannoramaai from 0:50'; musicBtn.setAttribute('aria-pressed','false');
