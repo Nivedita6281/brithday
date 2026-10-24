@@ -76,7 +76,7 @@
     <p class="hint" id="musicHint">Best opened with sound on, and a little time to smile.</p>
 
     <!-- IMPORTANT: the file name below must match your file in the static folder EXACTLY (lowercase, no spaces). -->
-    <audio id="bgAudio" src="static/kannoramaai.mp3" preload="auto" loop></audio>
+    <audio id="bgAudio" src="static/kannoramaai.mp3" preload="metadata"></audio>
   </header>
 
   <section id="cakeSection">
@@ -169,40 +169,80 @@
   });
 
   // ---- Music (local MP3, starts at 0:50) ----
-  function seekToStart() {
-    try { bgAudio.currentTime = START_AT; } catch (e) { /* ignore until metadata is ready */ }
+  function waitForAudioMetadata() {
+    if (bgAudio.readyState >= 1) return Promise.resolve();
+
+    return new Promise((resolve, reject) => {
+      const onLoaded = () => {
+        cleanup();
+        resolve();
+      };
+      const onError = () => {
+        cleanup();
+        reject(new Error('Audio file could not be loaded.'));
+      };
+      const cleanup = () => {
+        bgAudio.removeEventListener('loadedmetadata', onLoaded);
+        bgAudio.removeEventListener('error', onError);
+      };
+
+      bgAudio.addEventListener('loadedmetadata', onLoaded, { once: true });
+      bgAudio.addEventListener('error', onError, { once: true });
+      bgAudio.load();
+    });
   }
-  // If the browser hasn't loaded the file info yet, seek as soon as it has.
-  bgAudio.addEventListener('loadedmetadata', () => {
-    if (!playing || bgAudio.currentTime < START_AT) seekToStart();
-  });
-  // When the song loops, restart at 0:50 again instead of 0:00.
-  bgAudio.addEventListener('ended', () => { seekToStart(); bgAudio.play().catch(()=>{}); });
 
   bgAudio.addEventListener('error', () => {
     playing = false;
     musicBtn.textContent = '♫ Play Kannoramaai from 0:50';
-    musicBtn.setAttribute('aria-pressed','false');
-    musicHint.textContent = 'Song file not found. Check that static/kannoramaai.mp3 exists and the name matches exactly.';
+    musicBtn.setAttribute('aria-pressed', 'false');
+    musicHint.textContent = 'Audio file could not be loaded. Check that static/kannoramaai.mp3 exists and the filename uses the same capitalization.';
   });
 
   musicBtn.addEventListener('click', async () => {
-    if (!playing) {
-      try {
-        if (bgAudio.readyState >= 1) seekToStart();
-        await bgAudio.play();
-        if (bgAudio.readyState >= 1 && bgAudio.currentTime < START_AT - 1) seekToStart();
-        playing = true;
-        musicBtn.textContent = '♫ Kannoramaai playing (tap to pause)';
-        musicBtn.setAttribute('aria-pressed','true');
-      } catch (err) {
-        musicHint.textContent = 'Could not play the song: ' + (err && err.name ? err.name : 'unknown error');
-      }
-    } else {
+    if (playing) {
       bgAudio.pause();
       playing = false;
       musicBtn.textContent = '♫ Play Kannoramaai from 0:50';
-      musicBtn.setAttribute('aria-pressed','false');
+      musicBtn.setAttribute('aria-pressed', 'false');
+      musicHint.textContent = 'Tap the button to play the song from 0:50.';
+      return;
+    }
+
+    try {
+      musicHint.textContent = 'Loading your song…';
+      await waitForAudioMetadata();
+
+      if (!Number.isFinite(bgAudio.duration) || bgAudio.duration <= START_AT) {
+        throw new Error('The audio file is shorter than 50 seconds or its duration could not be read.');
+      }
+
+      bgAudio.currentTime = START_AT;
+      await bgAudio.play();
+
+      playing = true;
+      musicBtn.textContent = '♫ Pause Kannoramaai';
+      musicBtn.setAttribute('aria-pressed', 'true');
+      musicHint.textContent = 'Playing Kannoramaai from 0:50 💗';
+    } catch (err) {
+      playing = false;
+      musicBtn.textContent = '♫ Play Kannoramaai from 0:50';
+      musicBtn.setAttribute('aria-pressed', 'false');
+      musicHint.textContent = 'Could not play the song: ' + (err && err.message ? err.message : (err && err.name ? err.name : 'unknown error'));
+    }
+  });
+
+  // When the track finishes, restart at 0:50 if it was playing.
+  bgAudio.addEventListener('ended', async () => {
+    if (!playing) return;
+    try {
+      bgAudio.currentTime = START_AT;
+      await bgAudio.play();
+    } catch (err) {
+      playing = false;
+      musicBtn.textContent = '♫ Play Kannoramaai from 0:50';
+      musicBtn.setAttribute('aria-pressed', 'false');
+      musicHint.textContent = 'Playback stopped. Tap the button to play again.';
     }
   });
 
